@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DebtMap - AI Payoff Planner</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0a0f0a;--surface:#101810;--surface2:#182018;--border:#243024;
+  --accent:#86efac;--accent2:#4ade80;--text:#edfaed;--muted:#4a6b4a;
+  --red:#f87171;--yellow:#fbbf24;--blue:#60a5fa;--orange:#fb923c;
+}
+html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;height:100%;overflow:hidden;}
+body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;}
+
+.topbar{padding:11px 16px 9px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.r1{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.logo{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--accent2),var(--accent));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.tag{background:rgba(134,239,172,.13);color:var(--accent);padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.4px;}
+.dot-wrap{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--red);}
+.dot.on{background:var(--accent2);}
+.conn-row{display:flex;gap:6px;}
+.url-in,.model-sel{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:10px;outline:none;flex:1;min-width:0;}
+.url-in:focus,.model-sel:focus{border-color:var(--accent2);}
+.btn-xs{background:var(--accent2);color:#041004;border:none;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;flex-shrink:0;}
+
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.tab{flex:1;padding:10px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;}
+.tab.active{color:var(--accent2);border-bottom-color:var(--accent2);}
+
+.view{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.view.active{display:flex;}
+.scroll-area{flex:1;overflow-y:auto;padding:14px 16px 100px;-webkit-overflow-scrolling:touch;}
+.scroll-area::-webkit-scrollbar{display:none;}
+
+/* SUMMARY STRIP */
+.summary-strip{display:flex;gap:8px;padding:12px 16px 0;flex-shrink:0;background:var(--bg);}
+.sum-card{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center;}
+.sum-val{font-size:17px;font-weight:800;}
+.sum-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+
+/* DEBT CARDS */
+.debt-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 14px;margin-bottom:9px;position:relative;overflow:hidden;}
+.debt-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;border-radius:12px 0 0 12px;}
+.debt-card.high::before{background:var(--red);}
+.debt-card.medium::before{background:var(--yellow);}
+.debt-card.low::before{background:var(--accent2);}
+.debt-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.debt-name{font-size:14px;font-weight:700;}
+.debt-type{font-size:10px;color:var(--muted);margin-top:2px;}
+.debt-amount{font-size:18px;font-weight:800;color:var(--red);text-align:right;}
+.debt-rate{font-size:10px;color:var(--muted);text-align:right;}
+.debt-progress-bg{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin:8px 0;}
+.debt-progress-fill{height:100%;border-radius:3px;transition:width .4s;}
+.debt-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);}
+.debt-actions{display:flex;gap:6px;margin-top:10px;}
+.btn-pay{flex:2;background:var(--accent2);color:#041004;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:700;}
+.btn-edit{flex:1;background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px;border-radius:8px;font-size:12px;}
+.btn-del{background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 10px;border-radius:8px;font-size:12px;}
+
+.empty-state{text-align:center;color:var(--muted);padding:50px 20px;font-size:12px;line-height:1.8;}
+.empty-state .big{font-size:36px;margin-bottom:12px;}
+
+/* PLAN TAB */
+.strategy-toggle{display:flex;gap:6px;margin-bottom:12px;}
+.strat-btn{flex:1;padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;}
+.strat-btn.active{background:rgba(74,222,128,.1);border-color:var(--accent2);color:var(--accent2);}
+
+.plan-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:8px;}
+.plan-rank{display:inline-block;width:22px;height:22px;border-radius:50%;background:var(--accent2);color:#041004;font-size:11px;font-weight:800;text-align:center;line-height:22px;margin-right:8px;flex-shrink:0;}
+.plan-name{font-size:13px;font-weight:700;}
+.plan-detail{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5;}
+.plan-payoff{font-size:12px;color:var(--accent);margin-top:4px;font-weight:600;}
+
+.extra-input-row{display:flex;gap:8px;margin-bottom:12px;align-items:center;}
+.extra-lbl{font-size:11px;color:var(--muted);white-space:nowrap;}
+.extra-in{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;flex:1;}
+.extra-in:focus{border-color:var(--accent2);}
+
+.ai-insight-box{background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);border-radius:12px;padding:14px;margin-bottom:12px;font-size:12px;line-height:1.7;white-space:pre-wrap;}
+.ai-insight-btn{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:10px;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:flex-end;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto;}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px;}
+.modal h3{font-size:15px;font-weight:700;color:var(--accent);margin-bottom:14px;}
+.form-group{margin-bottom:11px;}
+.form-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:5px;display:block;}
+.form-in,.form-sel{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:9px;font-size:13px;outline:none;font-family:inherit;}
+.form-in:focus,.form-sel:focus{border-color:var(--accent2);}
+.row-2{display:flex;gap:10px;}.row-2 .form-group{flex:1;}
+.modal-actions{display:flex;gap:8px;margin-top:16px;}
+.btn-cancel{flex:1;background:transparent;border:1px solid var(--border);color:var(--muted);padding:11px;border-radius:10px;font-size:13px;}
+.btn-save{flex:2;background:var(--accent2);border:none;color:#041004;padding:11px;border-radius:10px;font-size:13px;font-weight:700;}
+
+/* PAYMENT MODAL */
+.payment-amount{font-size:32px;font-weight:800;color:var(--accent2);text-align:center;margin:10px 0;}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:20px;font-size:12px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="r1">
+    <div class="logo"><div class="logo-icon">&#128200;</div>DebtMap<span class="tag">OFFLINE AI</span></div>
+    <div class="dot-wrap"><div class="dot" id="dot"></div><span id="stxt">Offline</span></div>
+  </div>
+  <div class="conn-row">
+    <input class="url-in" id="ollamaUrl" value="http://localhost:11434">
+    <select class="model-sel" id="modelSel">
+      <option value="llama3.2">llama3.2</option>
+      <option value="mistral">mistral</option>
+      <option value="gemma2">gemma2</option>
+      <option value="qwen2.5">qwen2.5</option>
+    </select>
+    <button class="btn-xs" onclick="checkOllama()">Connect</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('debts')">&#128200; Debts</div>
+  <div class="tab" onclick="switchTab('plan')">&#127919; Plan</div>
+  <div class="tab" onclick="switchTab('history')">&#128338; History</div>
+</div>
+
+<!-- DEBTS TAB -->
+<div class="view active" id="view-debts">
+  <div class="summary-strip" id="summaryStrip"></div>
+  <div class="scroll-area">
+    <div id="debtsList"></div>
+    <button style="width:100%;background:linear-gradient(135deg,var(--accent2),var(--accent));border:none;color:#041004;padding:13px;border-radius:12px;font-size:14px;font-weight:700;margin-top:4px;" onclick="openDebtModal(null)">+ Add Debt</button>
+  </div>
+</div>
+
+<!-- PLAN TAB -->
+<div class="view" id="view-plan">
+  <div class="scroll-area">
+    <div class="extra-input-row">
+      <span class="extra-lbl">Extra monthly:</span>
+      <input class="extra-in" id="extraPayment" type="number" value="0" placeholder="0" onchange="renderPlan()">
+    </div>
+    <div class="strategy-toggle">
+      <button class="strat-btn active" id="btn-avalanche" onclick="setStrategy('avalanche')">&#127755; Avalanche<br><span style="font-size:9px;font-weight:400;">Highest rate first</span></button>
+      <button class="strat-btn" id="btn-snowball" onclick="setStrategy('snowball')">&#10052; Snowball<br><span style="font-size:9px;font-weight:400;">Lowest balance first</span></button>
+    </div>
+    <button class="ai-insight-btn" onclick="getAIInsight()">&#129504; Get AI Payoff Insight</button>
+    <div id="aiInsightBox"></div>
+    <div id="planList"></div>
+  </div>
+</div>
+
+<!-- HISTORY TAB -->
+<div class="view" id="view-history">
+  <div class="scroll-area" id="historyList">
+    <div class="empty-state"><div class="big">&#128338;</div>No payments recorded yet.</div>
+  </div>
+</div>
+
+<!-- DEBT MODAL -->
+<div class="modal-overlay" id="debtModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3 id="modalTitle">Add Debt</h3>
+    <div class="form-group">
+      <label class="form-lbl">Debt Name</label>
+      <input class="form-in" id="dName" placeholder="e.g. Chase Credit Card">
+    </div>
+    <div class="row-2">
+      <div class="form-group">
+        <label class="form-lbl">Balance ($)</label>
+        <input class="form-in" id="dBalance" type="number" step="0.01" placeholder="5000">
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">APR (%)</label>
+        <input class="form-in" id="dRate" type="number" step="0.01" placeholder="19.99">
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="form-group">
+        <label class="form-lbl">Min Payment ($)</label>
+        <input class="form-in" id="dMinPay" type="number" step="0.01" placeholder="50">
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Type</label>
+        <select class="form-sel" id="dType">
+          <option value="Credit Card">Credit Card</option>
+          <option value="Student Loan">Student Loan</option>
+          <option value="Car Loan">Car Loan</option>
+          <option value="Personal Loan">Personal Loan</option>
+          <option value="Mortgage">Mortgage</option>
+          <option value="Medical">Medical</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('debtModal')">Cancel</button>
+      <button class="btn-save" onclick="saveDebt()">Save Debt</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-overlay" id="payModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Record Payment</h3>
+    <div id="payDebtName" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
+    <div class="form-group">
+      <label class="form-lbl">Payment Amount ($)</label>
+      <input class="form-in" id="payAmount" type="number" step="0.01" placeholder="0.00" style="font-size:22px;font-weight:800;text-align:center;">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('payModal')">Cancel</button>
+      <button class="btn-save" onclick="confirmPayment()">Record Payment</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var debts = JSON.parse(localStorage.getItem('dm_debts')||'[]');
+var payments = JSON.parse(localStorage.getItem('dm_payments')||'[]');
+var ollamaConnected = false;
+var editingDebtId = null;
+var payingDebtId = null;
+var strategy = 'avalanche';
+
+window.onload = function(){ renderDebts(); renderSummary(); renderPlan(); renderHistory(); checkOllama(); };
+
+// ---- OLLAMA ----
+async function checkOllama(){
+  try{
+    var r=await fetch(document.getElementById('ollamaUrl').value+'/api/tags');
+    if(r.ok){
+      var d=await r.json(); ollamaConnected=true;
+      document.getElementById('dot').className='dot on';
+      document.getElementById('stxt').textContent='Connected';
+      if(d.models&&d.models.length){
+        var s=document.getElementById('modelSel'); s.innerHTML='';
+        d.models.forEach(function(m){var o=document.createElement('option');o.value=m.name;o.textContent=m.name;s.appendChild(o);});
+      }
+      showToast('Ollama connected');
+    }
+  }catch(e){ollamaConnected=false;document.getElementById('dot').className='dot';document.getElementById('stxt').textContent='Offline';}
+}
+
+async function callOllama(prompt){
+  var url=document.getElementById('ollamaUrl').value;
+  var model=document.getElementById('modelSel').value;
+  var r=await fetch(url+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:model,prompt:prompt,stream:false})});
+  if(!r.ok) throw new Error('Ollama error');
+  return (await r.json()).response;
+}
+
+function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmt$(n){return '$'+parseFloat(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+// ---- DEBT CRUD ----
+function openDebtModal(id){
+  editingDebtId=id;
+  if(id){
+    var d=debts.find(function(x){return x.id===id;});
+    document.getElementById('modalTitle').textContent='Edit Debt';
+    document.getElementById('dName').value=d.name;
+    document.getElementById('dBalance').value=d.balance;
+    document.getElementById('dRate').value=d.rate;
+    document.getElementById('dMinPay').value=d.minPay;
+    document.getElementById('dType').value=d.type;
+  } else {
+    document.getElementById('modalTitle').textContent='Add Debt';
+    ['dName','dBalance','dRate','dMinPay'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('dType').value='Credit Card';
+  }
+  document.getElementById('debtModal').classList.add('show');
+}
+
+function saveDebt(){
+  var name=document.getElementById('dName').value.trim();
+  var balance=parseFloat(document.getElementById('dBalance').value);
+  var rate=parseFloat(document.getElementById('dRate').value);
+  var minPay=parseFloat(document.getElementById('dMinPay').value);
+  var type=document.getElementById('dType').value;
+  if(!name||isNaN(balance)||isNaN(rate)||isNaN(minPay)){showToast('Fill all fields');return;}
+
+  if(editingDebtId){
+    var d=debts.find(function(x){return x.id===editingDebtId;});
+    Object.assign(d,{name,balance,rate,minPay,type});
+  } else {
+    debts.push({id:Date.now().toString(),name,balance,originalBalance:balance,rate,minPay,type,added:new Date().toISOString()});
+  }
+  save(); renderDebts(); renderSummary(); renderPlan();
+  closeModal('debtModal'); showToast(editingDebtId?'Debt updated':'Debt added');
+}
+
+function deleteDebt(id){
+  if(!confirm('Delete this debt?')) return;
+  debts=debts.filter(function(d){return d.id!==id;});
+  save(); renderDebts(); renderSummary(); renderPlan(); showToast('Deleted');
+}
+
+function openPayModal(id){
+  payingDebtId=id;
+  var d=debts.find(function(x){return x.id===id;});
+  document.getElementById('payDebtName').textContent=d.name+' — Balance: '+fmt$(d.balance);
+  document.getElementById('payAmount').value=d.minPay;
+  document.getElementById('payModal').classList.add('show');
+}
+
+function confirmPayment(){
+  var amount=parseFloat(document.getElementById('payAmount').value);
+  if(!amount||amount<=0){showToast('Enter valid amount');return;}
+  var d=debts.find(function(x){return x.id===payingDebtId;});
+  if(!d) return;
+  var principal=amount-(d.balance*(d.rate/100/12));
+  d.balance=Math.max(0,d.balance-Math.max(0,principal)-(amount>d.balance*d.rate/100/12?amount-d.balance*(d.rate/100/12):0));
+  // simplified: just subtract payment minus this month's interest
+  var interest=d.balance*(d.rate/100/12);
+  d.balance=Math.max(0,d.balance-(amount-interest));
+  payments.unshift({id:Date.now().toString(),debtId:d.id,debtName:d.name,amount:amount,date:new Date().toISOString()});
+  if(d.balance<=0){d.balance=0; showToast(d.name+' PAID OFF! &#127881;');}
+  else showToast('Payment recorded: '+fmt$(amount));
+  save(); renderDebts(); renderSummary(); renderPlan(); renderHistory();
+  closeModal('payModal');
+}
+
+// ---- RENDER DEBTS ----
+function renderDebts(){
+  var el=document.getElementById('debtsList');
+  if(!debts.length){
+    el.innerHTML='<div class="empty-state"><div class="big">&#127775;</div>No debts tracked.<br>Add your first debt to start your payoff journey.</div>';
+    return;
+  }
+  el.innerHTML=debts.map(function(d){
+    var pct=d.originalBalance?Math.round((1-d.balance/d.originalBalance)*100):0;
+    var priority=d.rate>20?'high':d.rate>10?'medium':'low';
+    var color=priority==='high'?'var(--red)':priority==='medium'?'var(--yellow)':'var(--accent2)';
+    return '<div class="debt-card '+priority+'">'+
+      '<div class="debt-header">'+
+        '<div><div class="debt-name">'+esc(d.name)+'</div><div class="debt-type">'+esc(d.type)+'</div></div>'+
+        '<div><div class="debt-amount">'+fmt$(d.balance)+'</div><div class="debt-rate">'+d.rate+'% APR</div></div>'+
+      '</div>'+
+      '<div class="debt-progress-bg"><div class="debt-progress-fill" style="width:'+pct+'%;background:'+color+';"></div></div>'+
+      '<div class="debt-meta"><span>'+pct+'% paid off</span><span>Min: '+fmt$(d.minPay)+'/mo</span></div>'+
+      '<div class="debt-actions">'+
+        '<button class="btn-pay" onclick="openPayModal(\''+d.id+'\')">Record Payment</button>'+
+        '<button class="btn-edit" onclick="openDebtModal(\''+d.id+'\')">Edit</button>'+
+        '<button class="btn-del" onclick="deleteDebt(\''+d.id+'\')">&#10005;</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function renderSummary(){
+  var total=debts.reduce(function(s,d){return s+d.balance;},0);
+  var minTotal=debts.reduce(function(s,d){return s+d.minPay;},0);
+  var avgRate=debts.length?debts.reduce(function(s,d){return s+d.rate;},0)/debts.length:0;
+  document.getElementById('summaryStrip').innerHTML=
+    '<div class="sum-card"><div class="sum-val" style="color:var(--red)">'+fmt$(total)+'</div><div class="sum-lbl">Total Debt</div></div>'+
+    '<div class="sum-card"><div class="sum-val" style="color:var(--yellow)">'+fmt$(minTotal)+'</div><div class="sum-lbl">Min/Month</div></div>'+
+    '<div class="sum-card"><div class="sum-val" style="color:var(--accent2)">'+debts.length+'</div><div class="sum-lbl">Debts</div></div>'+
+    '<div class="sum-card"><div class="sum-val" style="color:var(--orange)">'+avgRate.toFixed(1)+'%</div><div class="sum-lbl">Avg APR</div></div>';
+}
+
+// ---- PLAN ----
+function setStrategy(s){
+  strategy=s;
+  document.getElementById('btn-avalanche').classList.toggle('active',s==='avalanche');
+  document.getElementById('btn-snowball').classList.toggle('active',s==='snowball');
+  renderPlan();
+}
+
+function renderPlan(){
+  var extra=parseFloat(document.getElementById('extraPayment').value)||0;
+  if(!debts.length){document.getElementById('planList').innerHTML='<div class="empty-state"><div class="big">&#127919;</div>Add debts to see your payoff plan.</div>';return;}
+
+  var sorted=debts.slice().sort(function(a,b){
+    if(strategy==='avalanche') return b.rate-a.rate;
+    return a.balance-b.balance;
+  });
+
+  var html='';
+  sorted.forEach(function(d,i){
+    var months=estimateMonths(d.balance,d.rate,d.minPay+(i===0?extra:0));
+    var payoffDate=new Date();
+    payoffDate.setMonth(payoffDate.getMonth()+months);
+    var totalInterest=Math.max(0,(d.minPay+(i===0?extra:0))*months-d.balance);
+    html+='<div class="plan-card">'+
+      '<div style="display:flex;align-items:center;margin-bottom:4px;">'+
+        '<span class="plan-rank">'+(i+1)+'</span>'+
+        '<span class="plan-name">'+esc(d.name)+'</span>'+
+      '</div>'+
+      '<div class="plan-detail">Balance: '+fmt$(d.balance)+' &bull; '+d.rate+'% APR &bull; Min: '+fmt$(d.minPay)+(i===0&&extra?' + '+fmt$(extra)+' extra':'')+'/mo</div>'+
+      '<div class="plan-payoff">Payoff: '+payoffDate.toLocaleDateString('en-US',{month:'short',year:'numeric'})+' ('+months+' months) &bull; Interest: '+fmt$(totalInterest)+'</div>'+
+    '</div>';
+  });
+  document.getElementById('planList').innerHTML=html;
+}
+
+function estimateMonths(balance,annualRate,monthlyPay){
+  if(monthlyPay<=0) return 999;
+  var r=annualRate/100/12;
+  if(r===0) return Math.ceil(balance/monthlyPay);
+  if(monthlyPay<=balance*r) return 999; // won't pay off
+  return Math.ceil(-Math.log(1-(balance*r/monthlyPay))/Math.log(1+r));
+}
+
+// ---- AI INSIGHT ----
+async function getAIInsight(){
+  if(!ollamaConnected){showToast('Connect to Ollama first');return;}
+  if(!debts.length){showToast('Add debts first');return;}
+  var box=document.getElementById('aiInsightBox');
+  box.innerHTML='<div style="font-size:12px;color:var(--muted);padding:12px;text-align:center;">Analysing your debt profile...</div>';
+  var extra=parseFloat(document.getElementById('extraPayment').value)||0;
+  var summary=debts.map(function(d){return d.name+': '+fmt$(d.balance)+' at '+d.rate+'% APR, min payment '+fmt$(d.minPay);}).join('; ');
+  var prompt='You are a personal finance advisor. Analyse this debt profile and give: '+
+    '1) the single most impactful action this person can take right now, '+
+    '2) how much interest they save with the '+strategy+' method vs no extra payments, '+
+    '3) one motivational insight to keep them going. '+
+    'Be specific, concise, and encouraging. Extra monthly budget: $'+extra+'. Debts: '+summary;
+  try{
+    var result=await callOllama(prompt);
+    box.innerHTML='<div class="ai-insight-box">'+esc(result)+'</div>';
+  }catch(e){box.innerHTML='<div style="font-size:12px;color:var(--red);padding:12px;">Error: '+esc(e.message)+'</div>';}
+}
+
+// ---- HISTORY ----
+function renderHistory(){
+  var el=document.getElementById('historyList');
+  if(!payments.length){el.innerHTML='<div class="empty-state"><div class="big">&#128338;</div>No payments recorded yet.</div>';return;}
+  el.innerHTML=payments.slice(0,50).map(function(p){
+    var d=new Date(p.date);
+    var ds=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">'+
+      '<div><div style="font-size:13px;font-weight:600;">'+esc(p.debtName)+'</div><div style="font-size:10px;color:var(--muted);">'+ds+'</div></div>'+
+      '<div style="font-size:15px;font-weight:800;color:var(--accent2);">'+fmt$(p.amount)+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+function save(){
+  localStorage.setItem('dm_debts',JSON.stringify(debts));
+  localStorage.setItem('dm_payments',JSON.stringify(payments));
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+document.querySelectorAll('.modal-overlay').forEach(function(m){m.addEventListener('click',function(e){if(e.target===this) this.classList.remove('show');});});
+
+function switchTab(n){
+  var ns=['debts','plan','history'];
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',ns[i]===n);});
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  document.getElementById('view-'+n).classList.add('active');
+  if(n==='plan') renderPlan();
+  if(n==='history') renderHistory();
+}
+
+function showToast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
+</script>
+</body>
+</html>
